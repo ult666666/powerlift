@@ -85,12 +85,11 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
-"examples/**" = ["D103"]
 
 [tool.mypy]
 strict = true
 warn_unreachable = true
-files = ["src", "tests"]
+files = ["src", "tests", "examples"]
 
 [[tool.mypy.overrides]]
 # SciPy and statsmodels ship without type information. Their results are
