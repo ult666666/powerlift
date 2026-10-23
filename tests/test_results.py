@@ -46,8 +46,9 @@ def test_confidence_interval_helpers() -> None:
 
 def test_results_are_frozen() -> None:
     ci = ConfidenceInterval(0.0, 1.0, 0.9)
+    attribute = "lower"
     with pytest.raises(FrozenInstanceError):
-        ci.lower = 2.0  # type: ignore[misc]
+        setattr(ci, attribute, 2.0)
 
 
 def test_to_dict_is_json_serialisable_and_recursive() -> None:

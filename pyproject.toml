@@ -100,8 +100,9 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["tests"]
-addopts = ["-ra", "--strict-markers", "--strict-config"]
+testpaths = ["tests", "src"]
+# --doctest-modules runs the examples in the public docstrings.
+addopts = ["-ra", "--strict-markers", "--strict-config", "--doctest-modules"]
 xfail_strict = true
 filterwarnings = ["error"]
 
