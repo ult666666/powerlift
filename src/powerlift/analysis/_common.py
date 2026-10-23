@@ -41,7 +41,7 @@ class ComparisonResult(Result):
         Standard error of ``difference``.
     relative_lift : float or None
         ``estimate_treatment / estimate_control - 1``; ``None`` when the
-        control estimate is zero.
+        control estimate is zero (or too close to zero to divide by).
     statistic : float
         ``difference / se_difference`` (a t- or z-statistic).
     df : float or None
@@ -82,7 +82,7 @@ class ComparisonResult(Result):
         """Return a human-readable summary."""
         level = format_level(1 - self.alpha)
         lift = (
-            "n/a (control estimate is zero)"
+            "n/a (control estimate is zero or too close to zero)"
             if self.relative_lift is None or self.ci_relative_lift is None
             else f"{self.relative_lift:+.2%}   {level} CI "
             f"{self.ci_relative_lift.format('+.2%')}"
@@ -183,12 +183,14 @@ def relative_lift_interval(
     Lu 2018; Kohavi et al. 2020, ch. 18). The interval is symmetric on the
     lift scale and uses the normal critical value.
     """
-    if estimate_control == 0.0:
+    control_squared = estimate_control * estimate_control
+    if control_squared == 0.0:  # zero, or so close to zero that the square underflows
         return None, None
-    lift = estimate_treatment / estimate_control - 1.0
-    variance = (
-        variance_treatment / estimate_control**2
-        + estimate_treatment**2 * variance_control / estimate_control**4
-    )
+    ratio = estimate_treatment / estimate_control
+    # Same formula as above, written without C^4 to avoid underflow.
+    variance = (variance_treatment + ratio * ratio * variance_control) / control_squared
+    if not (math.isfinite(ratio) and math.isfinite(variance)):
+        return None, None
+    lift = ratio - 1.0
     half_width = normal_critical_value(alpha) * math.sqrt(variance)
     return lift, ConfidenceInterval(lift - half_width, lift + half_width, 1.0 - alpha)

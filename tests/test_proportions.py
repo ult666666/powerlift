@@ -188,7 +188,7 @@ def test_wald_under_covers_where_newcombe_does_not() -> None:
 def test_summary_and_to_dict() -> None:
     result = compare_proportions(480, 5000, 560, 5000)
     text = result.summary()
-    assert "480 / 5,000 = 9.60%" in text
+    assert "480 / 5,000 =  9.60%" in text
     assert "+1.60 pp" in text
     assert "(Newcombe)" in text
     assert "significant at alpha = 0.05" in text

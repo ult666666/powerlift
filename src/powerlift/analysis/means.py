@@ -101,7 +101,10 @@ def compare_means_from_stats(
         raise InsufficientDataError(
             "both arms have zero variance; the t-test is undefined"
         )
-    df = (var_c + var_t) ** 2 / (var_c**2 / (n_c - 1) + var_t**2 / (n_t - 1))
+    # Welch-Satterthwaite df, written with variance shares so that tiny or huge
+    # variances cannot underflow or overflow when squared.
+    share_c, share_t = var_c / (var_c + var_t), var_t / (var_c + var_t)
+    df = 1.0 / (share_c**2 / (n_c - 1) + share_t**2 / (n_t - 1))
     return compare_estimates(
         method="Welch's t-test",
         n_control=n_c,

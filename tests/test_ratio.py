@@ -96,6 +96,8 @@ def test_errors() -> None:
         compare_ratio_metrics([1.0, 2.0], [1.0, 1.0, 1.0], [1.0, 2.0], [1.0, 1.0])
     with pytest.raises(InvalidInputError, match="positive mean"):
         compare_ratio_metrics([1.0, 2.0], [0.0, 0.0], [1.0, 2.0], [1.0, 1.0])
+    with pytest.raises(InvalidInputError, match="positive mean"):
+        compare_ratio_metrics([1.0, 2.0], [-1.0, -2.0], [1.0, 2.0], [1.0, 1.0])
     # Revenue exactly proportional to sessions: every unit has the same ratio,
     # so the delta-method variance is zero in both arms.
     with pytest.raises(InsufficientDataError, match="standard error"):

@@ -83,7 +83,7 @@ class ProportionComparison(Result):
         lift = (
             "n/a (an arm has zero conversions)"
             if self.relative_lift is None or self.ci_relative_lift is None
-            else f"{self.relative_lift:+.2%}     {level} CI "
+            else f"{self.relative_lift:+.2%}   {level} CI "
             f"{self.ci_relative_lift.format('+.2%')} (log-ratio delta method)"
         )
         method = "Newcombe" if self.ci_method == "newcombe" else "Wald"
@@ -107,7 +107,7 @@ class ProportionComparison(Result):
     def _arm_line(self, arm: str, conversions: int, n: int) -> str:
         ci = self.ci_control if arm == "control" else self.ci_treatment
         return (
-            f"  {arm:<12} {conversions:,} / {n:,} = {conversions / n:.2%}   "
+            f"  {arm:<12} {conversions:,} / {n:,} = {conversions / n:>6.2%}   "
             f"{format_level(1 - self.alpha)} Wilson CI {ci.format('.2%')}"
         )
 

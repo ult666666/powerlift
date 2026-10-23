@@ -118,6 +118,19 @@ def test_zero_control_mean_has_no_relative_lift() -> None:
     assert "n/a" in result.summary()
 
 
+def test_extreme_magnitudes_do_not_underflow() -> None:
+    # Regression tests for cases found by Hypothesis: squaring tiny numbers
+    # used to underflow to zero and divide by zero.
+    tiny_means = compare_means([1.25e-153, 1.25e-153], [0.0, 1.0])
+    assert np.isfinite(tiny_means.statistic)
+    # Variances of order 1e-180 are representable but their squares are not;
+    # the statistic and df are scale-invariant, so compare with rescaled data.
+    tiny_variances = compare_means([1e-90, 2e-90], [0.0, 3e-90])
+    rescaled = compare_means([1.0, 2.0], [0.0, 3.0])
+    assert tiny_variances.df == pytest.approx(rescaled.df)
+    assert tiny_variances.statistic == pytest.approx(rescaled.statistic)
+
+
 def test_one_constant_arm_is_allowed() -> None:
     result = compare_means([5.0, 5.0, 5.0], [4.0, 6.0, 7.0])
     # Only the treatment variance contributes: df = n_t - 1.

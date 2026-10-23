@@ -100,7 +100,7 @@ def _ratio_and_variance(
             f"({y.size} != {x.size})"
         )
     x_mean = float(x.mean())
-    if x_mean <= 0.0:
+    if x_mean <= 0.0 or x_mean * x_mean == 0.0:  # the square is used below
         raise InvalidInputError(
             f"denominator_{arm} must have a positive mean, got {x_mean:g}"
         )
