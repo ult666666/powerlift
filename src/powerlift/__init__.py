@@ -12,6 +12,12 @@ from powerlift.analysis import (
     compare_ratio_metrics,
     wilson_interval,
 )
+from powerlift.bayes import (
+    BayesianComparison,
+    BetaPosterior,
+    compare_proportions_bayes,
+    prob_beta_greater,
+)
 from powerlift.cuped import CupedResult, compare_means_cuped
 from powerlift.design import (
     SampleSizeResult,
@@ -44,6 +50,8 @@ __version__ = version("powerlift")
 __all__ = [
     "AASimulationResult",
     "AlwaysValidResult",
+    "BayesianComparison",
+    "BetaPosterior",
     "ComparisonResult",
     "ConfidenceInterval",
     "ConvergenceError",
@@ -63,6 +71,7 @@ __all__ = [
     "compare_means_cuped",
     "compare_means_from_stats",
     "compare_proportions",
+    "compare_proportions_bayes",
     "compare_ratio_metrics",
     "crossing_probability",
     "experiment_duration",
@@ -71,6 +80,7 @@ __all__ = [
     "mde_proportions",
     "power_means",
     "power_proportions",
+    "prob_beta_greater",
     "sample_size_means",
     "sample_size_proportions",
     "simulate_aa",

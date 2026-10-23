@@ -46,3 +46,11 @@ jobs:
 
       - name: README doctests
         run: uv run pytest --doctest-glob="README.md" README.md
+
+      - name: CLI smoke test
+        run: |
+          uv run powerlift --version
+          uv run powerlift sample-size --baseline 0.10 --mde 0.10 --relative --daily-traffic 4000
+          uv run powerlift analyze --control 480/5000 --treatment 560/5000 --bayes
+          uv run powerlift srm --observed 50421 49579
+          uv run powerlift boundaries --looks 5 --method obrien-fleming --json
