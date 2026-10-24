@@ -47,7 +47,13 @@ Every result is a frozen dataclass with `.to_dict()` (JSON-ready) and
 
 ## Quick start
 
-Install from source with [uv](https://docs.astral.sh/uv/):
+Install the library and the `powerlift` CLI from the GitHub release (Python 3.11+):
+
+```bash
+pip install https://github.com/ult666666/powerlift/releases/download/v0.1.0/powerlift-0.1.0-py3-none-any.whl
+```
+
+Each release also attaches the source distribution and SHA-256 checksums. To work on the code, install it from source with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/ult666666/powerlift.git
