@@ -194,7 +194,7 @@ def group_sequential_boundaries(
     probabilities sum to ``alpha``. For ``alpha = 0.05`` and ``K = 5`` this
     reproduces Jennison & Turnbull's ``C_P = 2.413`` and ``C_B = 2.040``.
     Boundaries are accurate to about 1e-4 or better. The cost grows with
-    ``K``: under a second for 10 looks, several seconds for 20.
+    ``K``: under a second for 10 looks, up to about 10 seconds for 20.
 
     References
     ----------

@@ -102,7 +102,10 @@ def _simulate_z_paths(
     increments = rng.normal(size=(n_paths, fractions.size)) * np.sqrt(
         np.diff(fractions, prepend=0.0)
     )
-    return np.cumsum(increments, axis=1) / np.sqrt(fractions)
+    # np.asarray pins the return type, which some NumPy stub versions infer as Any.
+    return np.asarray(
+        np.cumsum(increments, axis=1) / np.sqrt(fractions), dtype=np.float64
+    )
 
 
 @pytest.mark.parametrize("method", METHODS)
