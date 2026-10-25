@@ -131,6 +131,21 @@ Welch's t-test on per-unit data; add `--metric proportion` (0/1 values),
 `--metric ratio --denominator-col sessions`, or `--covariate-col pre_revenue`
 (CUPED). Every command accepts `--json`; see `uv run powerlift <command> --help`.
 
+### Complete CSV experiment readout
+
+Run a fictional checkout experiment from its checked-in per-user CSV through
+SRM checks and CUPED analysis:
+
+```bash
+uv run python examples/experiment_readout.py --as-of 2026-09-15
+```
+
+The example blocks inference on SRM, incomplete outcome windows or insufficient
+enrollment. Its 400 synthetic users demonstrate a 65.2% estimated variance
+reduction while the adjusted confidence interval still includes zero. The
+[walkthrough](docs/EXPERIMENT_READOUT.md) explains the fixed plan, covariate timing,
+expected output, blocked cases and seed-based data regeneration.
+
 ### Variance reduction, multiple testing, sequential and Bayesian analysis
 
 ```python
