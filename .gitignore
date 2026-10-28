@@ -24,3 +24,6 @@ coverage.xml
 .DS_Store
 .idea/
 .vscode/
+
+# Local AI-agent planning notes
+docs/superpowers/

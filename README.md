@@ -1,8 +1,8 @@
 # powerlift
 
-Statistics for A/B tests done right: power analysis, frequentist and Bayesian
-analysis, variance reduction, sequential monitoring and sanity checks, validated
-against SciPy and statsmodels.
+Statistics for A/B tests: power analysis, frequentist and Bayesian analysis,
+variance reduction, sequential monitoring and sanity checks, checked against
+SciPy and statsmodels.
 
 [![CI](https://github.com/ult666666/powerlift/actions/workflows/ci.yml/badge.svg)](https://github.com/ult666666/powerlift/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -125,7 +125,8 @@ Lan-DeMets (O'Brien-Fleming-type spending) boundaries: two-sided alpha = 0.05, 4
 ```
 
 `powerlift sample-size --baseline 0.10 --mde 0.10 --relative --daily-traffic 4000`
-prints the plan shown in the quick start plus `duration 8 days`.
+prints the plan shown in the quick start plus the line
+`duration         8 days at 4,000 eligible units/day`.
 `powerlift analyze --csv data.csv --group-col group --value-col revenue` runs
 Welch's t-test on per-unit data; add `--metric proportion` (0/1 values),
 `--metric ratio --denominator-col sessions`, or `--covariate-col pre_revenue`
@@ -141,8 +142,10 @@ uv run python examples/experiment_readout.py --as-of 2026-09-15
 ```
 
 The example blocks inference on SRM, incomplete outcome windows or insufficient
-enrollment. Its 400 synthetic users demonstrate a 65.2% estimated variance
-reduction while the adjusted confidence interval still includes zero. The
+enrollment. On its 400 synthetic users, CUPED cuts the estimated variance by
+65.2% and the adjusted confidence interval still includes zero. The estimate is
+negative even though the data generator adds $0.50 to treatment revenue: one
+small sample can miss the true effect. The
 [walkthrough](docs/EXPERIMENT_READOUT.md) explains the fixed plan, covariate timing,
 expected output, blocked cases and seed-based data regeneration.
 

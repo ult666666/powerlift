@@ -65,31 +65,31 @@ The checked-in seed-42 data gives this output (rounded by the script):
 
 The split is 200/200, giving an SRM p-value of 1.0000. The CUPED adjustment
 reduces the estimated variance of the comparison by **65.2%**. Its interval is
-narrower, and still includes zero: this sample does not establish a direction
-of effect. Failure to reject zero does not establish equivalence or exclude
-business-relevant losses. The raw row is context, not another test to choose
-when its result looks better.
+narrower but still includes zero, so this sample does not establish a direction
+of effect.
 
 The simulator adds $0.50 to treatment revenue, plus independent noise, and
-rounds amounts to cents. This particular small sample estimates a negative
-effect despite that known positive injection. A confidence interval from one
-sample can miss the generating effect; this dataset illustrates the workflow,
-not calibration or a dependable benefit. The library's independent simulation
-tests address calibration.
+rounds amounts to cents. This small sample still estimates a negative effect:
+one sample's confidence interval can miss the generating effect. The library's
+simulation tests cover calibration.
 
-The covariate must be measured **before treatment can affect it**. A column
-named `pre_revenue_usd` is not evidence of that provenance: in a real export,
-verify time boundaries and joins. September revenue, post-assignment sessions
-or a later snapshot are unsuitable substitutes. CUPED here estimates one
-pooled adjustment coefficient and treats it as fixed, matching the library's
-[methodology](METHODOLOGY.md).
+### Caveats
 
-Passing SRM only means this check did not detect an allocation problem. It does
-not validate assignment, logging, complete outcomes or covariate provenance.
-The example makes no launch recommendation. This fixed-horizon test must not
-be rerun repeatedly to choose a favorable stopping time; see the existing
-[sequential methods and peeking simulation](../README.md#peeking-simulation)
-when interim monitoring is part of the plan.
+- Not rejecting zero does not show the arms are equivalent or rule out a
+  business-relevant loss.
+- The unadjusted row is context. Do not switch to it when its result looks
+  better.
+- The covariate must be measured **before treatment can affect it**. A column
+  named `pre_revenue_usd` does not prove that; in a real export, check time
+  boundaries and joins. September revenue, post-assignment sessions or a later
+  snapshot are unsuitable substitutes.
+- CUPED here estimates one pooled adjustment coefficient and treats it as
+  fixed, matching the library's [methodology](METHODOLOGY.md).
+- Passing SRM only means this check found no allocation problem. It does not
+  validate assignment, logging, complete outcomes or covariate provenance.
+- Do not rerun this fixed-horizon test to pick a stopping time. If interim
+  monitoring is part of the plan, use the
+  [sequential methods](../README.md#peeking-simulation) instead.
 
 ## See the gates work
 
@@ -129,8 +129,7 @@ the other arm to match does not repair randomization. Balanced enrollment below
 200 users per arm also blocks the example's final analysis.
 
 Exit codes are 0 for a completed, ungated readout; 1 for a blocked readout; 2
-for invalid input or an I/O error. Exit 0 is workflow completion, not a
-statistical win.
+for invalid input or an I/O error.
 
 ## Reproduce the data
 
