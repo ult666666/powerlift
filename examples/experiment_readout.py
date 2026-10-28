@@ -179,22 +179,13 @@ def render_readout(result: Readout) -> str:
             [
                 "",
                 f"Estimated variance reduction: {comparison.variance_reduction:.1%}.",
-                "The raw row is context, not a second opportunity "
-                "to select a winning test.",
-                "The interval expresses uncertainty; a p-value is not "
-                "the probability the null is true.",
             ]
         )
     lines.extend(
         [
             "",
-            "This is not a launch recommendation. "
-            "The small synthetic example is not a power plan.",
-            "Passing SRM does not validate assignment or covariate provenance.",
-            "Keep every randomized user, including zero outcomes; never filter on",
-            "conversion or use a post-treatment covariate. The analyst must verify",
-            "complete outcome collection and the predeclared analysis horizon.",
-            "Do not repeatedly run this fixed-horizon test to decide when to stop.",
+            "This is not a launch recommendation, and the small synthetic sample",
+            "is not a power plan. docs/EXPERIMENT_READOUT.md lists the assumptions.",
             "",
         ]
     )

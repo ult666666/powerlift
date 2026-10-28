@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+The `powerlift` package itself is unchanged since 0.1.0.
+
+### Added
+
+- `examples/experiment_readout.py`: a fixed-horizon readout of a fictional
+  checkout experiment that runs a per-user CSV through SRM, outcome-window and
+  enrollment gates before a CUPED analysis. The walkthrough is in
+  `docs/EXPERIMENT_READOUT.md`.
+- A release workflow that builds the wheel and sdist from a version tag and
+  attaches them, with SHA-256 checksums, to the GitHub release.
+
 ## [0.1.0] - 2026-10-23
 
 ### Added
