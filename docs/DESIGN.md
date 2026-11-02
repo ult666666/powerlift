@@ -11,9 +11,11 @@ src/powerlift/
   exceptions.py        PowerliftError > InvalidInputError, InsufficientDataError, ConvergenceError
   _validation.py       argument checks shared by every public function
   _stats.py            p-values and critical values (z and t)
+  _dunnett.py          distribution of the largest of k correlated t statistics
   _results.py          Result base class (to_dict, summary), ConfidenceInterval
   design.py            sample size, power, MDE, duration
-  analysis/            proportions.py, means.py, ratio.py (+ _common.py result builder)
+  analysis/            proportions.py, means.py, ratio.py, many_to_one.py (A/B/n)
+                       (+ _common.py result builder)
   cuped.py             variance reduction on top of analysis.compare_means
   sanity.py            SRM test, A/A simulation
   multiple_testing.py  Bonferroni, Holm, Benjamini-Hochberg
@@ -122,6 +124,41 @@ loss uses the identity `u f(u; a, b) = a/(a+b) f(u; a+1, b)` to reuse the same
 integral. Only the credible intervals for the difference and the lift use
 seeded Monte Carlo draws.
 
+**Dunnett's distribution by a two-dimensional integral.** Comparing `k`
+treatment arms with one control gives `k` t-statistics that share the control
+mean and the pooled standard deviation. Their joint null distribution is a
+multivariate t with correlations of product form, `lambda_i lambda_j`. General
+software (SciPy's `multivariate_t`, which `scipy.stats.dunnett` uses)
+integrates such probabilities by randomized quasi-Monte Carlo, so results move
+in the fourth decimal between seeds, and an interval search on top of a noisy
+function can fail (SciPy warns when it does; the differential test skips those
+cases). The product form allows conditioning on one shared normal factor and
+the variance scale, which leaves independent factors and a two-dimensional
+integral for any `k` (Dunnett 1955, AS 251). Both dimensions use the
+trapezoidal rule on fixed grids; the grid for the shared factor gets finer when
+an arm is much larger than the control, because the integrand then changes
+faster. *Trade-off:* the method only covers product-form correlations,
+which is exactly the many-to-one case; all-pairs comparisons (Tukey) would need
+the general integrators. Critical values are cached, since simulations and
+repeated readouts ask for the same one many times.
+
+**Proportions as 0/1 means in multi-arm tests.** The two-arm z-test pools the
+rate under the null. For `k` arms, `compare_proportions_to_control` instead
+treats conversions as 0/1 outcomes and uses the same pooled within-arm
+variance as the means test. One code path then serves both metrics, results
+equal `scipy.stats.dunnett` on the expanded data, and the intervals never
+degenerate when one arm has a rate of 0 or 1. With experiment-sized samples
+the two statistics differ by O(1/n). The design formula estimates the same
+pooled variance, so the plan matches the test that will be run.
+
+**Intervals that match the test.** The two-arm functions always report
+two-sided intervals. For several arms that would break the link between the
+test and the interval, because the one-sided and two-sided Dunnett critical
+values are not related by halving `alpha`. Many-to-one results therefore give
+one-sided simultaneous bounds for one-sided tests, with an infinite open end.
+`to_dict()` turns non-finite floats into `None`, so `--json` output stays
+strict JSON.
+
 **Reproducibility.** Every random component takes a seed (A/A simulation,
 Bayesian intervals) or uses a fixed internal seed (quasi-Monte Carlo
 integration). Dependency versions are locked in `uv.lock`; the lower bounds in
@@ -137,7 +174,8 @@ Four kinds of evidence, all in `tests/`:
    `samplesize_proportions_2indep_onetail`, `NormalIndPower`,
    `proportions_ztest`, `proportion_confint`, `confint_proportions_2indep`,
    `multipletests`) and SciPy (`ttest_ind`, `ttest_ind_from_stats`,
-   `chisquare`, `linregress`), often on Hypothesis-generated inputs.
+   `chisquare`, `linregress`, `dunnett`, `multivariate_normal`,
+   `multivariate_t`), often on Hypothesis-generated inputs.
 2. **Published values.** Pocock and O'Brien-Fleming constants from Jennison &
    Turnbull (K = 2-5 and 10), Lan-DeMets O'Brien-Fleming-type bounds for
    K = 5, the classic error rates of naive repeated testing, Evan Miller's
@@ -148,7 +186,10 @@ Four kinds of evidence, all in `tests/`:
    test is calibrated in A/A simulations (and a deliberately wrong
    session-level analysis is caught), group sequential designs have type-I
    error alpha over 400,000 simulated paths, the mSPRT keeps its error below
-   alpha under continuous monitoring, Holm controls FWER and BH controls FDR.
+   alpha under continuous monitoring, Holm controls FWER and BH controls FDR,
+   and with several treatment arms Dunnett's test holds the family-wise error
+   at alpha while unadjusted tests exceed it by the exact amount the max-|t|
+   distribution predicts.
    Tolerances are set from the Monte Carlo standard error (typically 3-5 SE).
 4. **Properties and invariants.** Hypothesis checks round trips (the MDE at
    the planned size gives back the planned size), monotonicity, ordering of
@@ -158,10 +199,20 @@ Four kinds of evidence, all in `tests/`:
    covered by regression tests.
 
 Examples in docstrings and in the README are executed as doctests, the peeking
-example has a smoke test, and coverage is measured with branch coverage
+and multi-arm examples have smoke tests, and coverage is measured with branch coverage
 (CI fails below 90%).
 
 ## Questions worth being able to answer
+
+- *Why is Dunnett's test more powerful than Bonferroni?* Bonferroni guards
+  against the worst case of independent tests. The comparisons share the
+  control arm, so they are positively correlated, the largest of them is less
+  extreme than for independent tests, and the exact critical value for three
+  equal arms is 2.35 instead of Bonferroni's 2.39.
+- *How many false wins does an unadjusted A/B/n test produce?* With three
+  treatment arms of equal size and no real effect, at least one arm reaches
+  `p < 0.05` in 12.5% of experiments, and with six arms in 20.7% (exact values
+  from the same distribution, confirmed by simulation in the README).
 
 - *Why does peeking inflate the false-positive rate?* Each look is another
   chance for a random walk to cross 1.96; the crossing probability grows with

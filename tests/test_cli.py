@@ -182,6 +182,65 @@ def test_analyze_csv_bad_values(
     assert "No such file" in err
 
 
+def test_analyze_csv_with_several_treatment_arms(
+    capsys: pytest.CaptureFixture[str], experiment_csv: Path
+) -> None:
+    arms = ["--treatment-label", "treatment", "--treatment-label", "holdout"]
+    base = ["analyze", "--csv", str(experiment_csv), *arms]
+    status, out, _ = run(capsys, *base, "--value-col", "revenue")
+    assert status == 0
+    srm, comparison = out.split("\n\n")
+    assert srm.startswith("Sample ratio mismatch check")
+    assert "no SRM detected" in srm
+    assert comparison.startswith("Dunnett's many-to-one test, two-sided")
+    assert "  treatment " in comparison
+    assert "  holdout " in comparison
+
+    status, out, _ = run(
+        capsys,
+        *base,
+        "--value-col",
+        "converted",
+        "--metric",
+        "proportion",
+        "--adjustment",
+        "holm",
+        "--alternative",
+        "greater",
+        "--json",
+    )
+    assert status == 0
+    assert "Infinity" not in out  # strict JSON: open interval ends become null
+    srm_json, comparison_json = json.loads(out)
+    assert srm_json["observed"] == [300, 300, 300]
+    assert comparison_json["adjustment"] == "holm"
+    assert comparison_json["comparisons"][1]["ci_difference"]["upper"] is None
+
+    status, out, _ = run(
+        capsys, *base, "--value-col", "revenue", "--allocation", "0.5", "0.25", "0.25"
+    )
+    assert status == 0
+    assert "SRM DETECTED" in out
+
+
+def test_analyze_csv_with_several_arms_errors(
+    capsys: pytest.CaptureFixture[str], experiment_csv: Path
+) -> None:
+    arms = ["--treatment-label", "treatment", "--treatment-label", "holdout"]
+    base = ["analyze", "--csv", str(experiment_csv), "--value-col", "revenue"]
+    status, _, err = run(
+        capsys, *base, *arms, "--metric", "ratio", "--denominator-col", "sessions"
+    )
+    assert status == 1
+    assert "supports --metric mean or proportion" in err
+    status, _, err = run(capsys, *base, "--adjustment", "dunnett")
+    assert status == 1
+    assert "need two or more --treatment-label" in err
+    status, _, err = run(capsys, *base, *arms, "--treatment-label", "control")
+    assert status == 1
+    assert "distinct" in err
+
+
 def test_srm(capsys: pytest.CaptureFixture[str]) -> None:
     status, out, _ = run(capsys, "srm", "--observed", "50421", "49579")
     assert status == 0

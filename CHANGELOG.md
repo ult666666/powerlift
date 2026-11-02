@@ -6,9 +6,23 @@ project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The `powerlift` package itself is unchanged since 0.1.0.
-
 ### Added
+
+- Multi-arm (A/B/n) experiments: `compare_means_to_control` and
+  `compare_proportions_to_control` compare several treatment arms with one
+  control using Dunnett's test, with adjusted p-values and simultaneous
+  intervals (one-sided or two-sided), or Holm, Bonferroni or no adjustment.
+  The Dunnett distribution is computed deterministically from a
+  two-dimensional integral; `dunnett_critical_value` exposes its quantile.
+- `sample_size_multi_arm_means` and `sample_size_multi_arm_proportions`:
+  sample sizes and per-arm power for several treatment arms under Dunnett's
+  test, with Bonferroni as a conservative option and an adjustable control
+  allocation.
+- `powerlift analyze --csv` accepts `--treatment-label` more than once for a
+  multi-arm readout: an SRM check across all arms (`--allocation`), then the
+  many-to-one comparison (`--adjustment`).
+- `examples/multi_arm_simulation.py`: family-wise error under the global null
+  and planned versus simulated power.
 
 - `examples/experiment_readout.py`: a fixed-horizon readout of a fictional
   checkout experiment that runs a per-user CSV through SRM, outcome-window and
@@ -16,6 +30,11 @@ The `powerlift` package itself is unchanged since 0.1.0.
   `docs/EXPERIMENT_READOUT.md`.
 - A release workflow that builds the wheel and sdist from a version tag and
   attaches them, with SHA-256 checksums, to the GitHub release.
+
+### Changed
+
+- `Result.to_dict()` returns `None` for infinite or NaN floats, so JSON output
+  stays valid. No earlier result contained such values.
 
 ## [0.1.0] - 2026-10-23
 
