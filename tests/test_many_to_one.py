@@ -86,6 +86,46 @@ def test_quantile_inverts_the_cdf_and_grows_with_k() -> None:
     )
 
 
+@pytest.mark.parametrize("df", [math.inf, 597.0, 30.0])
+def test_critical_values_stay_exact_down_to_the_smallest_supported_alpha(
+    df: float,
+) -> None:
+    # One comparison has a closed form, so it shows how far the integration holds.
+    reference = stats.norm if math.isinf(df) else stats.t(df)
+    for alpha in (1e-8, 1e-10):
+        c = dunnett_critical_value(100, [100], alpha=alpha, df=df)
+        assert c == pytest.approx(reference.isf(alpha / 2), abs=1e-6)
+
+
+@pytest.mark.parametrize("df", [math.inf, 597.0, 30.0])
+def test_alpha_beyond_the_integration_accuracy_is_rejected(df: float) -> None:
+    # Below 1e-10 the trapezoidal sums cannot resolve the tail: at 1e-16 the
+    # search returned 16 or 32 instead of about 8.3 to 16.7, and smaller values
+    # never returned with a finite df.
+    with pytest.raises(InvalidInputError, match="alpha must be at least 1e-10"):
+        dunnett_critical_value(100, [100], alpha=1e-16, df=df)
+
+
+def test_dunnett_analysis_rejects_alpha_beyond_the_integration_accuracy() -> None:
+    rng = np.random.default_rng(0)
+    control, arms = rng.normal(size=200), [rng.normal(size=200), rng.normal(size=200)]
+    with pytest.raises(InvalidInputError, match="alpha must be at least 1e-10"):
+        compare_means_to_control(control, arms, alpha=1e-16)
+    # The adjustments that do not integrate the max-|t| distribution still work.
+    result = compare_means_to_control(
+        control, arms, alpha=1e-16, adjustment="bonferroni"
+    )
+    assert result.critical_value == pytest.approx(stats.t.isf(1e-16 / 4, 597))
+
+
+def test_the_bracket_search_stops(monkeypatch: pytest.MonkeyPatch) -> None:
+    # With a finite df the integration never reaches probability 1. Without the
+    # alpha floor, the search must give up instead of doubling its bracket forever.
+    monkeypatch.setattr("powerlift._dunnett.MIN_TAIL_PROBABILITY", 0.0)
+    with pytest.raises(InvalidInputError, match="no critical value below"):
+        max_t_quantile(1.0, np.array([0.5]), 597.0, "two-sided")
+
+
 # ------------------------------------------------- against scipy.stats.dunnett
 
 arm_means = st.floats(-1.0, 1.0)

@@ -138,6 +138,8 @@ def test_summary_duration_and_json() -> None:
 
 
 def test_rejects_invalid_plans() -> None:
+    with pytest.raises(InvalidInputError, match="alpha must be at least 1e-10"):
+        sample_size_multi_arm_means(sd=1.0, mde=0.1, n_treatments=3, alpha=1e-17)
     with pytest.raises(InvalidInputError, match="n_treatments"):
         sample_size_multi_arm_means(sd=1.0, mde=0.1, n_treatments=0)
     with pytest.raises(InvalidInputError, match="adjustment"):

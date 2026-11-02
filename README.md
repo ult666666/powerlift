@@ -48,13 +48,13 @@ Every result is a frozen dataclass with `.to_dict()` (JSON-ready) and
 
 ## Quick start
 
-Install the library and the `powerlift` CLI from the GitHub release (Python 3.11+):
+Install the library and the `powerlift` CLI from GitHub (Python 3.11+):
 
 ```bash
-pip install https://github.com/ult666666/powerlift/releases/download/v0.1.0/powerlift-0.1.0-py3-none-any.whl
+pip install "git+https://github.com/ult666666/powerlift.git"
 ```
 
-Each release also attaches the source distribution and SHA-256 checksums. To work on the code, install it from source with [uv](https://docs.astral.sh/uv/):
+The [v0.1.0 release](https://github.com/ult666666/powerlift/releases/tag/v0.1.0) attaches a wheel, the source distribution and SHA-256 checksums, but it predates the A/B/n features: it has no `compare_means_to_control`, `compare_proportions_to_control` or multi-arm sample sizes, and its `analyze` keeps only the last `--treatment-label`, so the multi-arm command below runs a two-arm test there. To work on the code, install it from source with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/ult666666/powerlift.git
@@ -403,7 +403,7 @@ uv run pytest --cov                                  # tests, docstring examples
 uv run pytest --doctest-glob="README.md" README.md   # this README's examples
 ```
 
-CI runs the same steps, plus a CLI smoke test, on Python 3.11, 3.12 and 3.13.
+CI runs the same steps, plus a CLI smoke test and the README examples against an installed wheel, on Python 3.11, 3.12 and 3.13.
 
 ## Limitations and roadmap
 
@@ -420,6 +420,8 @@ CI runs the same steps, plus a CLI smoke test, on Python 3.11, 3.12 and 3.13.
   power of each treatment-versus-control comparison, assuming every treatment
   arm has the MDE, not the power to detect at least one or all arms. CUPED,
   ratio metrics, sequential and Bayesian methods remain two-arm only.
+  Dunnett critical values need `alpha >= 1e-10`; below that the numerical
+  integration is not accurate enough, so the functions raise an error.
 - `experiment_duration` assumes every day brings new, distinct units.
 - CUPED uses a single covariate and treats `theta` as fixed; ratio-metric and
   relative-lift intervals rely on the first-order delta method.
