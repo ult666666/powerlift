@@ -99,9 +99,10 @@ def test_critical_values_stay_exact_down_to_the_smallest_supported_alpha(
 
 @pytest.mark.parametrize("df", [math.inf, 597.0, 30.0])
 def test_alpha_beyond_the_integration_accuracy_is_rejected(df: float) -> None:
-    # Below 1e-10 the trapezoidal sums cannot resolve the tail: at 1e-16 the
-    # search returned 16 or 32 instead of about 8.3 to 16.7, and smaller values
-    # never returned with a finite df.
+    # Below 1e-10 the trapezoidal sums cannot resolve the tail. At 1e-16 one
+    # comparison gave 8.23 instead of 8.30 (df = inf), 16 instead of 8.55
+    # (df = 597) and 32 instead of 16.7 (df = 30); smaller values never returned
+    # with a finite df.
     with pytest.raises(InvalidInputError, match="alpha must be at least 1e-10"):
         dunnett_critical_value(100, [100], alpha=1e-16, df=df)
 

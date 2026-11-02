@@ -46,8 +46,8 @@ Tail = Literal["two-sided", "one-sided"]
 # Smallest tail probability 1 - level that max_t_quantile accepts. With one
 # comparison, where a closed form exists, the critical value at 1e-10 is within a
 # relative 1e-6 of it for df >= 5 (less accurate for fewer df), but 1e-3 off at
-# 1e-14 even for df = inf. At 1e-16 the search returned the end of its bracket,
-# and below that, with a finite df, it never ended.
+# 1e-14 even for df = inf. At 1e-16 a finite df made the search return the end of
+# its bracket, and below that it never ended.
 MIN_TAIL_PROBABILITY = 1e-10
 # The bracket search gives up beyond this cutoff instead of doubling forever.
 _MAX_CUTOFF = 2.0**64
