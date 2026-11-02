@@ -89,7 +89,7 @@ simulation tests cover calibration.
   validate assignment, logging, complete outcomes or covariate provenance.
 - Do not rerun this fixed-horizon test to pick a stopping time. If interim
   monitoring is part of the plan, use the
-  [sequential methods](../README.md#peeking-simulation) instead.
+  [sequential methods](SIMULATIONS.md#peeking-and-sequential-monitoring) instead.
 
 ## See the gates work
 

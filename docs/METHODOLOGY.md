@@ -8,6 +8,16 @@ sizes `n_c`, `n_t`, allocation ratio `r = n_t / n_c`, effect
 intervals are two-sided with confidence `1 - alpha`, and a test is significant
 when `p <= alpha`.
 
+## The mistakes these methods address
+
+| Mistake | What goes wrong | Section |
+|---|---|---|
+| No sample-size plan | "No significant difference" usually means "not enough data". | 1 |
+| Peeking | Stopping at the first significant daily look gives nearly four times the planned false-positive rate after ten looks ([simulation](SIMULATIONS.md#peeking-and-sequential-monitoring)). | 8 |
+| Sample ratio mismatch | A test planned as an even split ends with 50,800 and 49,200 users. That gap has `p = 4e-7`, so assignment or logging is broken and the result cannot be trusted. | 5 |
+| Multiple comparisons | Test each metric at `alpha = 0.05`, and ten independent metrics give a 40% chance of at least one false win. Three equal-sized variants against the control give 12.5%. | 7 |
+| Wrong unit of analysis | Treating sessions as independent when users were randomized understates the standard error. | 4 |
+
 ## 1. Experiment design (`powerlift.design`)
 
 All design calculations use the normal approximation to the sampling

@@ -167,34 +167,34 @@ exercises (the lock resolves them for Python 3.11), rather than guesses.
 
 ## How correctness is verified
 
-Four kinds of evidence, all in `tests/`:
+Four kinds of check, all in `tests/`:
 
-1. **Reference parity.** Results are compared with independent
-   implementations: statsmodels (`power_proportions_2indep`,
+1. Reference parity: results are compared with independent
+   implementations in statsmodels (`power_proportions_2indep`,
    `samplesize_proportions_2indep_onetail`, `NormalIndPower`,
    `proportions_ztest`, `proportion_confint`, `confint_proportions_2indep`,
    `multipletests`) and SciPy (`ttest_ind`, `ttest_ind_from_stats`,
    `chisquare`, `linregress`, `dunnett`, `multivariate_normal`,
    `multivariate_t`), often on Hypothesis-generated inputs.
-2. **Published values.** Pocock and O'Brien-Fleming constants from Jennison &
+2. Published values: Pocock and O'Brien-Fleming constants from Jennison &
    Turnbull (K = 2-5 and 10), Lan-DeMets O'Brien-Fleming-type bounds for
    K = 5, the classic error rates of naive repeated testing, Evan Miller's
    closed form for P(B > A).
-3. **Simulation.** Seeded Monte Carlo checks of the properties that matter:
+3. Simulation: seeded Monte Carlo checks of the properties that matter:
    planned sample sizes deliver planned power, intervals have nominal
    coverage, CUPED is unbiased and removes about `rho^2` of the variance, every
-   test is calibrated in A/A simulations (and a deliberately wrong
-   session-level analysis is caught), group sequential designs have type-I
+   test is calibrated in A/A simulations (and a wrong session-level analysis
+   is caught), group sequential designs have type-I
    error alpha over 400,000 simulated paths, the mSPRT keeps its error below
    alpha under continuous monitoring, Holm controls FWER and BH controls FDR,
    and with several treatment arms Dunnett's test holds the family-wise error
    at alpha while unadjusted tests exceed it by the exact amount the max-|t|
    distribution predicts.
    Tolerances are set from the Monte Carlo standard error (typically 3-5 SE).
-4. **Properties and invariants.** Hypothesis checks round trips (the MDE at
+4. Properties and invariants: Hypothesis checks round trips (the MDE at
    the planned size gives back the planned size), monotonicity, ordering of
    corrections (BH <= Holm <= Bonferroni), permutation equivariance and the
-   p-value / confidence-sequence duality. It also found real bugs: squaring
+   p-value / confidence-sequence duality. It also found bugs: squaring
    values near 1e-150 underflowed to zero and divided by zero, now fixed and
    covered by regression tests.
 
@@ -202,7 +202,28 @@ Examples in docstrings and in the README are executed as doctests, the peeking
 and multi-arm examples have smoke tests, and coverage is measured with branch coverage
 (CI fails below 90%).
 
-## Questions worth being able to answer
+### By component
+
+| What | Checked against |
+|---|---|
+| Proportion sample size and power | statsmodels `samplesize_proportions_2indep_onetail` and `power_proportions_2indep` (power agrees to 1e-10) |
+| Mean sample size and power | statsmodels `NormalIndPower`; the `16 sd^2 / mde^2` rule of thumb |
+| Planned n gives planned power | 2,000 simulated experiments analysed with powerlift |
+| z-test, Wilson, Newcombe, Wald and log-ratio intervals | statsmodels `proportions_ztest`, `proportion_confint` and `confint_proportions_2indep` on Hypothesis-generated counts |
+| Welch's t-test | `scipy.stats.ttest_ind(equal_var=False)` and `ttest_ind_from_stats` |
+| Ratio metrics | covariance form of the delta method; simulated sampling SD and 95% coverage |
+| CUPED | pooled regression slope; simulated variance reduction close to rho^2, unbiased estimate, 95% coverage |
+| SRM | `scipy.stats.chisquare`, for two or more arms |
+| Dunnett's test (means and proportions) | `scipy.stats.dunnett` on Hypothesis-generated datasets with 1 to 5 treatment arms (statistics to 1e-10, p-values within SciPy's randomized error of 5e-4, interval bounds); Student's t-test for one arm; `adjust_p_values` for Holm and Bonferroni |
+| Max-\|t\| distribution | closed forms for one arm and for uncorrelated arms (1e-12); SciPy's `multivariate_normal` and `multivariate_t` integrators |
+| Multi-arm FWER and power | simulated experiments under the global null against the exact error rate of each rule; planned per-arm power against simulated Dunnett analyses |
+| Calibration of every test | A/A simulations: false-positive rate and KS uniformity test |
+| Multiple testing | statsmodels `multipletests`; simulated FWER and FDR |
+| Group sequential boundaries | Jennison & Turnbull's Pocock and O'Brien-Fleming constants (K = 2-5 and 10); published Lan-DeMets bounds; 400,000-path simulations of the type-I error |
+| mSPRT | closed-form mixture likelihood ratio; p-value / confidence-sequence duality; continuous-monitoring simulation |
+| Bayesian P(B > A) and expected loss | Evan Miller's closed form; Monte Carlo |
+
+## Common questions
 
 - *Why is Dunnett's test more powerful than Bonferroni?* Bonferroni guards
   against the worst case of independent tests. The comparisons share the
@@ -212,7 +233,7 @@ and multi-arm examples have smoke tests, and coverage is measured with branch co
 - *How many false wins does an unadjusted A/B/n test produce?* With three
   treatment arms of equal size and no real effect, at least one arm reaches
   `p < 0.05` in 12.5% of experiments, and with six arms in 20.7% (exact values
-  from the same distribution, confirmed by simulation in the README).
+  from the same distribution, confirmed by simulation in [SIMULATIONS.md](SIMULATIONS.md)).
 
 - *Why does peeking inflate the false-positive rate?* Each look is another
   chance for a random walk to cross 1.96; the crossing probability grows with
@@ -232,3 +253,41 @@ and multi-arm examples have smoke tests, and coverage is measured with branch co
   power at any fixed sample size.
 - *Why Holm over Bonferroni?* Same guarantee (FWER under any dependence), never
   fewer rejections.
+
+## Limitations and roadmap
+
+- All frequentist methods use large-sample normal approximations. There are no
+  exact tests (such as Fisher's) for very small samples, and the design
+  formulas are z-based (a t-based design needs slightly more units below about
+  30 per arm).
+- Two-arm intervals are always two-sided, even when the test is one-sided.
+  Multi-arm results give one-sided simultaneous bounds for one-sided tests.
+- Multi-arm comparisons are many-to-one only (no all-pairs comparisons such as
+  Tukey's) and single-step (no step-down Dunnett). They pool the variance of
+  all arms, so they assume equal variances; with very unequal variances use
+  pairwise Welch tests and `adjust_p_values`. The multi-arm design gives the
+  power of each treatment-versus-control comparison, assuming every treatment
+  arm has the MDE, not the power to detect at least one or all arms. CUPED,
+  ratio metrics, sequential and Bayesian methods remain two-arm only.
+  Dunnett critical values need `alpha >= 1e-10`; below that the numerical
+  integration is not accurate enough, so the functions raise an error.
+- `experiment_duration` assumes every day brings new, distinct units.
+- CUPED uses a single covariate and treats `theta` as fixed; ratio-metric and
+  relative-lift intervals rely on the first-order delta method.
+- Group sequential designs are two-sided and efficacy-only (no futility
+  bounds), and the maximum sample size inflation is not computed. Boundaries
+  come from quasi-Monte Carlo integration (accurate to about 1e-4); the cost
+  grows with the number of looks (under a second for 10, up to about 11 s for
+  20 with Lan-DeMets spending).
+- The mSPRT uses plug-in variances, needs a user-chosen `tau` and is
+  two-sided only.
+- The Bayesian module covers conversion metrics with independent Beta priors.
+- Benjamini-Hochberg assumes independent or positively dependent tests.
+
+### Roadmap
+
+Futility and one-sided boundaries via recursive numerical integration
+(Jennison & Turnbull, ch. 19), sample size inflation for sequential designs,
+regression adjustment with several covariates, bootstrap intervals, Bayesian
+models for continuous metrics, step-down Dunnett tests, and multi-arm
+power for detecting any or all effective arms.
