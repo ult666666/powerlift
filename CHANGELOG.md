@@ -35,6 +35,10 @@ project follows [Semantic Versioning](https://semver.org/).
 
 - `Result.to_dict()` returns `None` for infinite or NaN floats, so JSON output
   stays valid. No earlier result contained such values.
+- The README is organised as install, one example, the module table and how it
+  works; its doctests are unchanged. The command-line transcripts moved to
+  `docs/CLI.md`, the multi-arm and peeking simulations to `docs/SIMULATIONS.md`,
+  and the per-component checks and full limitations to `docs/DESIGN.md`.
 
 ### Fixed
 
