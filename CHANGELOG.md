@@ -36,6 +36,19 @@ project follows [Semantic Versioning](https://semver.org/).
 - `Result.to_dict()` returns `None` for infinite or NaN floats, so JSON output
   stays valid. No earlier result contained such values.
 
+### Fixed
+
+- The README quick start installed the v0.1.0 release wheel, which predates the
+  A/B/n features: the multi-arm README examples failed with `ImportError`, and
+  the multi-arm `analyze` command silently ran a two-arm Welch test on the last
+  `--treatment-label`. The quick start now installs from GitHub and says what
+  the release lacks. CI runs the README examples against an installed wheel.
+- Dunnett critical values for `alpha` of about 1e-16 or less were wrong: with
+  a finite `df` the search returned the end of its bracket (16.0 for one
+  comparison with `df = 597`, where the closed form gives 8.55), and smaller
+  values made `compare_means_to_control` run forever. `alpha` below 1e-10 now
+  raises `InvalidInputError`, and the bracket search is bounded.
+
 ## [0.1.0] - 2026-10-23
 
 ### Added

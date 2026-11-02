@@ -39,8 +39,18 @@ import numpy as np
 from scipy import optimize, special, stats
 
 from powerlift._validation import FloatArray
+from powerlift.exceptions import InvalidInputError
 
 Tail = Literal["two-sided", "one-sided"]
+
+# Smallest tail probability 1 - level that max_t_quantile accepts. With one
+# comparison, where a closed form exists, the critical value at 1e-10 is within a
+# relative 1e-6 of it for df >= 5 (less accurate for fewer df), but 1e-3 off at
+# 1e-14 even for df = inf. At 1e-16 a finite df made the search return the end of
+# its bracket, and below that it never ended.
+MIN_TAIL_PROBABILITY = 1e-10
+# The bracket search gives up beyond this cutoff instead of doubling forever.
+_MAX_CUTOFF = 2.0**64
 
 # Trapezoid steps. Each factor of the integrand changes over a distance of about
 # sqrt(1 - lambda^2) / lambda in Z_0, so the Z_0 step shrinks for arms much
@@ -115,7 +125,19 @@ def max_t_quantile(level: float, lambdas: FloatArray, df: float, tail: Tail) -> 
 
     Results are cached, because simulations and repeated readouts ask for the
     same critical value many times.
+
+    Raises
+    ------
+    InvalidInputError
+        If ``1 - level`` (the ``alpha`` of the test) is below
+        :data:`MIN_TAIL_PROBABILITY`, where the integration is no longer accurate.
     """
+    if not 1.0 - level >= MIN_TAIL_PROBABILITY:
+        raise InvalidInputError(
+            f"alpha must be at least {MIN_TAIL_PROBABILITY:g} for Dunnett's critical "
+            f"value, got {1.0 - level:.3g}: smaller tail probabilities are beyond the "
+            "accuracy of the numerical integration"
+        )
     key = tuple(float(x) for x in np.asarray(lambdas, dtype=np.float64))
     return _quantile(float(level), key, float(df), tail)
 
@@ -130,5 +152,9 @@ def _quantile(level: float, lambdas: tuple[float, ...], df: float, tail: Tail) -
     upper = 2.0
     while gap(upper) < 0.0:
         upper *= 2.0
+        if upper > _MAX_CUTOFF:
+            raise InvalidInputError(
+                f"no critical value below {_MAX_CUTOFF:g} reaches probability {level!r}"
+            )
     lower = 0.0 if tail == "two-sided" else -upper
     return float(optimize.brentq(gap, lower, upper, xtol=1e-12, rtol=1e-12))

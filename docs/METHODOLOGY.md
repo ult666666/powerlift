@@ -247,6 +247,10 @@ with SciPy's general multivariate normal and t integrators to 1e-6 and 1e-5
 (SciPy's own randomized error is the limit there).
 `scipy.stats.dunnett` integrates the same distribution by randomized
 quasi-Monte Carlo; its p-values move by up to about 1e-4 between seeds.
+Critical values need `alpha >= 1e-10`. At that level the one-comparison value
+is within a relative 1e-6 of its closed form for 5 or more degrees of freedom.
+Below it the trapezoidal sums cannot resolve the tail, so the functions raise
+`InvalidInputError` instead of returning a wrong cutoff.
 
 **Alternatives.** `adjustment="bonferroni"` multiplies the per-comparison
 p-values by `k`; `"holm"` applies Holm's step-down adjustment (section 7). Both
