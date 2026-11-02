@@ -3,7 +3,8 @@
 Commands
 --------
 sample-size  Sample size (and optional duration) for a two-arm test.
-analyze      Analyse results from counts or from a CSV file of per-unit data.
+analyze      Analyse results from counts or from a CSV file of per-unit data;
+             repeat --treatment-label for a readout of several treatment arms.
 srm          Sample ratio mismatch check.
 boundaries   Group sequential boundaries for interim analyses.
 
@@ -28,8 +29,11 @@ from powerlift import __version__
 from powerlift._results import Result
 from powerlift._validation import FloatArray
 from powerlift.analysis import (
+    ADJUSTMENTS,
     compare_means,
+    compare_means_to_control,
     compare_proportions,
+    compare_proportions_to_control,
     compare_ratio_metrics,
 )
 from powerlift.bayes import compare_proportions_bayes
@@ -157,6 +161,16 @@ def _analyze(args: argparse.Namespace) -> list[Result]:
 
 
 def _analyze_csv(args: argparse.Namespace) -> list[Result]:
+    treatments: list[str] = args.treatment_label or ["treatment"]
+    labels = [args.control_label, *treatments]
+    if len(set(labels)) != len(labels):
+        raise InvalidInputError("the control and treatment labels must be distinct")
+    if len(treatments) > 1:
+        return _analyze_arms(args, treatments)
+    if args.adjustment is not None or args.allocation is not None:
+        raise InvalidInputError(
+            "--adjustment and --allocation need two or more --treatment-label values"
+        )
     columns = {"value": args.value_col}
     if args.metric == "ratio":
         if args.denominator_col is None:
@@ -168,20 +182,13 @@ def _analyze_csv(args: argparse.Namespace) -> list[Result]:
                 "--covariate-col (CUPED) is only supported for --metric mean"
             )
         columns["covariate"] = args.covariate_col
-    data = _read_arms(
-        args.csv, args.group_col, (args.control_label, args.treatment_label), columns
-    )
-    control, treatment = data[args.control_label], data[args.treatment_label]
+    data = _read_arms(args.csv, args.group_col, labels, columns)
+    control, treatment = data[args.control_label], data[treatments[0]]
     common = {"alpha": args.alpha, "alternative": args.alternative}
 
     if args.metric == "proportion":
-        counts = []
-        for arm in (control, treatment):
-            values = arm["value"]
-            if not np.all((values == 0) | (values == 1)):
-                raise InvalidInputError("--metric proportion needs 0/1 values")
-            counts.append((int(values.sum()), values.size))
-        (x_c, n_c), (x_t, n_t) = counts
+        x_c, n_c = _binary_counts(control["value"])
+        x_t, n_t = _binary_counts(treatment["value"])
         return [compare_proportions(x_c, n_c, x_t, n_t, **common)]
     if args.metric == "ratio":
         return [
@@ -206,8 +213,44 @@ def _analyze_csv(args: argparse.Namespace) -> list[Result]:
     return [compare_means(control["value"], treatment["value"], **common)]
 
 
+def _analyze_arms(args: argparse.Namespace, treatments: list[str]) -> list[Result]:
+    """Multi-arm readout: an SRM check over every arm, then many-to-one comparisons."""
+    if args.metric == "ratio" or args.covariate_col is not None:
+        raise InvalidInputError(
+            "a multi-arm readout supports --metric mean or proportion, "
+            "without --covariate-col"
+        )
+    labels = [args.control_label, *treatments]
+    data = _read_arms(args.csv, args.group_col, labels, {"value": args.value_col})
+    values = {label: data[label]["value"] for label in labels}
+    srm = srm_test([values[label].size for label in labels], args.allocation)
+    options: dict[str, Any] = {
+        "control_name": args.control_label,
+        "alpha": args.alpha,
+        "alternative": args.alternative,
+        "adjustment": args.adjustment or "dunnett",
+    }
+    if args.metric == "proportion":
+        counts = {label: _binary_counts(values[label]) for label in labels}
+        comparison = compare_proportions_to_control(
+            counts[args.control_label], {t: counts[t] for t in treatments}, **options
+        )
+    else:
+        comparison = compare_means_to_control(
+            values[args.control_label], {t: values[t] for t in treatments}, **options
+        )
+    return [srm, comparison]
+
+
+def _binary_counts(values: FloatArray) -> tuple[int, int]:
+    """(conversions, n) from a column of 0/1 outcomes."""
+    if not np.all((values == 0) | (values == 1)):
+        raise InvalidInputError("--metric proportion needs 0/1 values")
+    return int(values.sum()), values.size
+
+
 def _read_arms(
-    path: Path, group_col: str, labels: tuple[str, str], columns: dict[str, str]
+    path: Path, group_col: str, labels: Sequence[str], columns: dict[str, str]
 ) -> dict[str, dict[str, FloatArray]]:
     """Read the requested numeric columns of a CSV file, split by arm label."""
     rows: dict[str, dict[str, list[float]]] = {
@@ -332,7 +375,25 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--group-col", default="group")
     analyze.add_argument("--value-col", default="value")
     analyze.add_argument("--control-label", default="control")
-    analyze.add_argument("--treatment-label", default="treatment")
+    analyze.add_argument(
+        "--treatment-label",
+        action="append",
+        help="treatment arm label in --csv (default: treatment); repeat it to "
+        "compare several treatment arms with the control",
+    )
+    analyze.add_argument(
+        "--adjustment",
+        choices=ADJUSTMENTS,
+        help="multiplicity adjustment for several treatment arms (default: dunnett)",
+    )
+    analyze.add_argument(
+        "--allocation",
+        type=float,
+        nargs="+",
+        metavar="SHARE",
+        help="planned traffic split for the multi-arm SRM check, control first "
+        "(default: equal)",
+    )
     analyze.add_argument(
         "--metric", choices=["mean", "proportion", "ratio"], default="mean"
     )

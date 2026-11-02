@@ -4,12 +4,17 @@ from importlib.metadata import version
 
 from powerlift._results import ConfidenceInterval
 from powerlift.analysis import (
+    ArmComparison,
     ComparisonResult,
+    ManyToOneComparison,
     ProportionComparison,
     compare_means,
     compare_means_from_stats,
+    compare_means_to_control,
     compare_proportions,
+    compare_proportions_to_control,
     compare_ratio_metrics,
+    dunnett_critical_value,
     wilson_interval,
 )
 from powerlift.bayes import (
@@ -20,6 +25,7 @@ from powerlift.bayes import (
 )
 from powerlift.cuped import CupedResult, compare_means_cuped
 from powerlift.design import (
+    MultiArmSampleSize,
     SampleSizeResult,
     experiment_duration,
     mde_means,
@@ -27,6 +33,8 @@ from powerlift.design import (
     power_means,
     power_proportions,
     sample_size_means,
+    sample_size_multi_arm_means,
+    sample_size_multi_arm_proportions,
     sample_size_proportions,
 )
 from powerlift.exceptions import (
@@ -50,6 +58,7 @@ __version__ = version("powerlift")
 __all__ = [
     "AASimulationResult",
     "AlwaysValidResult",
+    "ArmComparison",
     "BayesianComparison",
     "BetaPosterior",
     "ComparisonResult",
@@ -59,6 +68,8 @@ __all__ = [
     "GroupSequentialBoundaries",
     "InsufficientDataError",
     "InvalidInputError",
+    "ManyToOneComparison",
+    "MultiArmSampleSize",
     "MultipleTestingResult",
     "PowerliftError",
     "ProportionComparison",
@@ -70,10 +81,13 @@ __all__ = [
     "compare_means",
     "compare_means_cuped",
     "compare_means_from_stats",
+    "compare_means_to_control",
     "compare_proportions",
     "compare_proportions_bayes",
+    "compare_proportions_to_control",
     "compare_ratio_metrics",
     "crossing_probability",
+    "dunnett_critical_value",
     "experiment_duration",
     "group_sequential_boundaries",
     "mde_means",
@@ -82,6 +96,8 @@ __all__ = [
     "power_proportions",
     "prob_beta_greater",
     "sample_size_means",
+    "sample_size_multi_arm_means",
+    "sample_size_multi_arm_proportions",
     "sample_size_proportions",
     "simulate_aa",
     "srm_test",

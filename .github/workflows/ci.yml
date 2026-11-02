@@ -54,3 +54,5 @@ jobs:
           uv run powerlift analyze --control 480/5000 --treatment 560/5000 --bayes
           uv run powerlift srm --observed 50421 49579
           uv run powerlift boundaries --looks 5 --method obrien-fleming --json
+          uv run python examples/multi_arm_simulation.py --experiments 50 --csv "$RUNNER_TEMP/arms.csv"
+          uv run powerlift analyze --csv "$RUNNER_TEMP/arms.csv" --group-col arm --value-col revenue_usd --control-label A --treatment-label B --treatment-label C --treatment-label D

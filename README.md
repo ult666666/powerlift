@@ -1,8 +1,8 @@
 # powerlift
 
-Statistics for A/B tests: power analysis, frequentist and Bayesian analysis,
-variance reduction, sequential monitoring and sanity checks, checked against
-SciPy and statsmodels.
+Statistics for A/B and A/B/n tests: power analysis, frequentist and Bayesian
+analysis, multi-arm comparisons, variance reduction, sequential monitoring and
+sanity checks, checked against SciPy and statsmodels.
 
 [![CI](https://github.com/ult666666/powerlift/actions/workflows/ci.yml/badge.svg)](https://github.com/ult666666/powerlift/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -21,7 +21,8 @@ Most A/B-testing mistakes are statistical, not engineering ones:
   users has p = 4e-7 under the planned split: something is wrong with
   assignment or logging, and the results cannot be trusted.
 - **Multiple comparisons.** Testing 10 independent metrics at `alpha = 0.05`
-  gives a 40% chance of at least one false win.
+  gives a 40% chance of at least one false win, and comparing three
+  equal-sized variants with one control a 12.5% chance (see [A/B/n tests](#abn-tests-several-treatment-arms)).
 - **Wrong variance.** Analysing sessions as independent when users were
   randomized understates the standard error.
 
@@ -32,14 +33,14 @@ functions whose results are checked against independent references.
 
 | Module | What it does |
 |---|---|
-| `powerlift.design` | Sample size, power and MDE for two proportions (pooled z-test) or two means; experiment duration from daily traffic |
-| `powerlift.analysis` | Two-proportion z-test with Wilson, Newcombe and Wald intervals and a log-ratio interval for the relative lift; Welch's t-test; delta-method analysis of ratio metrics |
-| `powerlift.sanity` | SRM chi-square check; A/A simulation of a test's false-positive rate and p-value uniformity |
+| `powerlift.design` | Sample size, power and MDE for two proportions (pooled z-test) or two means; sample size and per-arm power for several treatment arms under Dunnett's test (or Bonferroni); experiment duration from daily traffic |
+| `powerlift.analysis` | Two-proportion z-test with Wilson, Newcombe and Wald intervals and a log-ratio interval for the relative lift; Welch's t-test; delta-method analysis of ratio metrics; several treatment arms against one control with Dunnett's test (adjusted p-values, simultaneous intervals) or Holm and Bonferroni |
+| `powerlift.sanity` | SRM chi-square check for any number of arms; A/A simulation of a test's false-positive rate and p-value uniformity |
 | `powerlift.cuped` | CUPED variance reduction with a pre-experiment covariate |
 | `powerlift.multiple_testing` | Bonferroni, Holm and Benjamini-Hochberg adjustments |
 | `powerlift.sequential` | Pocock, O'Brien-Fleming and Lan-DeMets group sequential boundaries; mSPRT always-valid p-values and confidence sequences |
 | `powerlift.bayes` | Beta-Binomial posteriors, P(B > A), expected loss and credible intervals |
-| `powerlift` CLI | `sample-size`, `analyze` (counts or CSV), `srm` and `boundaries`, with text or JSON output |
+| `powerlift` CLI | `sample-size`, `analyze` (counts, or a CSV with two or more arms), `srm` and `boundaries`, with text or JSON output |
 
 Every result is a frozen dataclass with `.to_dict()` (JSON-ready) and
 `.summary()` (also used by `print`). Invalid input raises
@@ -198,6 +199,111 @@ The mSPRT example shows the price of peeking: a fixed-horizon z-test on the
 last look alone would give `z = 3` (p = 0.0027), but after three looks the
 always-valid p-value is 0.056.
 
+### A/B/n tests: several treatment arms
+
+Comparing three equal-sized variants with one control at `alpha = 0.05` each
+gives a false win in 12.5% of experiments with no real effect. Dunnett's test compares every
+variant with the control while holding that family-wise error at `alpha`, and
+gives simultaneous intervals. Conversion rates are given as
+`(conversions, n)` per arm:
+
+```python
+>>> from powerlift import compare_proportions_to_control, sample_size_multi_arm_proportions
+>>> result = compare_proportions_to_control(
+...     (1_000, 10_000), {"B": (1_050, 10_000), "C": (1_080, 10_000), "D": (1_120, 10_000)}
+... )
+>>> print(result)
+Dunnett's many-to-one test, two-sided, alpha = 0.05 (family-wise)
+  pooled SD 0.308142 with df = 39,996; critical value 2.3491
+  arm                 n    estimate    difference  95% simultaneous CI
+  control        10,000      10.00%
+  B              10,000      10.50%      +0.50 pp  [-0.52 pp, +1.52 pp]   adjusted p = 0.5214 (not significant)
+  C              10,000      10.80%      +0.80 pp  [-0.22 pp, +1.82 pp]   adjusted p = 0.1630 (not significant)
+  D              10,000      11.20%      +1.20 pp  [+0.18 pp, +2.22 pp]   adjusted p = 0.0164 (significant)
+>>> round(result.comparison("D").p_value, 4)  # D's p-value before the adjustment
+0.0059
+>>> plan = sample_size_multi_arm_proportions(0.10, 0.10, relative=True, n_treatments=3)
+>>> print(plan)
+Sample size: 3 treatment arms vs one control (two-sided Dunnett test, family-wise alpha = 0.05, power = 0.8 per arm)
+  baseline rate    10.00%
+  minimum effect   +1.00 pp (+10.00% relative) in each treatment arm
+  critical value   2.3490
+  allocation       n_control / n_treatment = 1
+  required n       control 19,424 | each treatment 19,424 | total 77,696
+  achieved power   0.8000 per treatment arm
+>>> sample_size_multi_arm_proportions(
+...     0.10, 0.10, relative=True, n_treatments=3, adjustment="bonferroni"
+... ).total
+79912
+>>> sample_size_multi_arm_proportions(  # control sqrt(3) times larger than each variant
+...     0.10, 0.10, relative=True, n_treatments=3, control_ratio=3 ** 0.5
+... ).total
+73077
+
+```
+
+`compare_means_to_control` does the same for per-unit values such as revenue;
+`adjustment="holm"`, `"bonferroni"` or `"none"` switch the method, and
+`alternative="greater"` gives one-sided tests with one-sided simultaneous
+bounds. Planning for Bonferroni instead of Dunnett costs 2,216 extra users here;
+a control arm `sqrt(3)` times larger than each variant saves 4,619.
+
+From the command line, repeat `--treatment-label` to read out a CSV with
+several arms. The readout starts with an SRM check across all arms (pass the
+planned split with `--allocation`, control first). The synthetic file below
+comes from `uv run python examples/multi_arm_simulation.py --csv arms.csv`;
+its arms B and C match control A, and D adds $1.00 per user:
+
+```console
+$ uv run powerlift analyze --csv arms.csv --group-col arm --value-col revenue_usd --control-label A --treatment-label B --treatment-label C --treatment-label D
+Sample ratio mismatch check (chi-square goodness of fit)
+  arm 1: observed 2,000 (25.000%), expected 2,000.0 (25.000%)
+  arm 2: observed 2,000 (25.000%), expected 2,000.0 (25.000%)
+  arm 3: observed 2,000 (25.000%), expected 2,000.0 (25.000%)
+  arm 4: observed 2,000 (25.000%), expected 2,000.0 (25.000%)
+  chi2 = 0.000, df = 3, p-value = 1.0000
+  no SRM detected (p >= 0.001)
+
+Dunnett's many-to-one test, two-sided, alpha = 0.05 (family-wise)
+  pooled SD 7.23568 with df = 7,996; critical value 2.3494
+  arm                 n    estimate    difference  95% simultaneous CI
+  A               2,000     10.0568
+  B               2,000     10.0752      +0.01837  [-0.519206, +0.555946]   adjusted p = 0.9996 (not significant)
+  C               2,000     10.2287     +0.171955  [-0.365621, +0.709531]   adjusted p = 0.7934 (not significant)
+  D               2,000     11.0045      +0.94768  [+0.410104, +1.48526]   adjusted p = 0.0001 (significant)
+```
+
+[`examples/multi_arm_simulation.py`](examples/multi_arm_simulation.py) checks
+the method by simulation (`uv run python examples/multi_arm_simulation.py`,
+about 90 seconds). Every simulated experiment has arms of 500 users with no
+real difference; "exact" is the rate the max-|t| distribution predicts. The
+power rows simulate experiments at the planned sizes with a true +0.1 sd or
+10% to 11% effect in every treatment arm:
+
+```text
+Family-wise error rate at alpha = 0.05, global null, 500 units per arm, 2,000 SYNTHETIC experiments per column
+                    3 treatments      6 treatments
+  adjustment    measured   exact  measured   exact
+  none             13.5%   12.5%     20.4%   20.7%
+  bonferroni        4.4%    4.4%      4.8%    4.1%
+  holm              4.4%    4.4%      4.8%    4.1%
+  dunnett           5.1%    5.0%      5.4%    5.0%
+
+Power to detect the first treatment arm, 2,000 experiments per row
+  plan                                                planned  simulated
+  mean +0.1 sd, 3 arms, Dunnett, n = 2,036/arm          80.0%      79.7%
+  10% -> 11%, 3 arms, Dunnett, n = 19,424/arm           80.0%      78.5%
+  10% -> 11%, 3 arms, Bonferroni, n = 19,978/arm        80.0%      80.6%
+```
+
+Without adjustment the chance of a false win grows from 12.5% to 20.7% as the
+number of variants doubles from three to six. Dunnett's test stays at 5% up to
+Monte Carlo error (about 0.5 percentage points at 2,000 experiments), while
+Bonferroni and Holm fall below it. Under this global null the two find a false
+win in exactly the same experiments: both do so when the smallest p-value is
+below `alpha / k`. The planned sample sizes deliver the planned 80%
+power within about 1.5 percentage points (the standard error is 0.9).
+
 ### A/A simulation
 
 `simulate_aa` runs a test on many simulated experiments with no true effect. A
@@ -251,6 +357,11 @@ is that it needs no planned number of looks.
   multivariate normal with `corr(Z_i, Z_j) = sqrt(t_i / t_j)`. The probability
   of first crossing at each look is a rectangle probability computed with
   `scipy.stats.multivariate_normal.cdf`; constants come from Brent's method.
+- **Multi-arm comparisons** use the fact that the treatment-minus-control
+  statistics share the control arm, so their correlations have the product
+  form `lambda_i lambda_j`. Conditioning on the shared factor makes them
+  independent, and Dunnett's distribution becomes a two-dimensional integral
+  for any number of arms, computed deterministically with the trapezoidal rule.
 - **mSPRT** compares a normal mixture alternative with the null. The
   likelihood ratio is a martingale under H0, so Ville's inequality makes
   `1 / max(likelihood ratio)` an always-valid p-value.
@@ -272,7 +383,10 @@ just "it runs". Simulations use fixed seeds.
 | Welch's t-test | `scipy.stats.ttest_ind(equal_var=False)` and `ttest_ind_from_stats` |
 | Ratio metrics | covariance form of the delta method; simulated sampling SD and 95% coverage |
 | CUPED | pooled regression slope; simulated variance reduction close to rho^2, unbiased estimate, 95% coverage |
-| SRM | `scipy.stats.chisquare` |
+| SRM | `scipy.stats.chisquare`, for two or more arms |
+| Dunnett's test (means and proportions) | `scipy.stats.dunnett` on Hypothesis-generated datasets with 1 to 5 treatment arms (statistics to 1e-10, p-values within SciPy's randomized error of 5e-4, interval bounds); Student's t-test for one arm; `adjust_p_values` for Holm and Bonferroni |
+| Max-\|t\| distribution | closed forms for one arm and for uncorrelated arms (1e-12); SciPy's `multivariate_normal` and `multivariate_t` integrators |
+| Multi-arm FWER and power | simulated experiments under the global null against the exact error rate of each rule; planned per-arm power against simulated Dunnett analyses |
 | Calibration of every test | A/A simulations: false-positive rate and KS uniformity test |
 | Multiple testing | statsmodels `multipletests`; simulated FWER and FDR |
 | Group sequential boundaries | Jennison & Turnbull's Pocock and O'Brien-Fleming constants (K = 2-5 and 10); published Lan-DeMets bounds; 400,000-path simulations of the type-I error |
@@ -297,8 +411,15 @@ CI runs the same steps, plus a CLI smoke test, on Python 3.11, 3.12 and 3.13.
   exact tests (such as Fisher's) for very small samples, and the design
   formulas are z-based (a t-based design needs slightly more units below about
   30 per arm).
-- Intervals are always two-sided, even when the test is one-sided.
-- Two arms only: no multi-arm designs or Dunnett-style comparisons.
+- Two-arm intervals are always two-sided, even when the test is one-sided.
+  Multi-arm results give one-sided simultaneous bounds for one-sided tests.
+- Multi-arm comparisons are many-to-one only (no all-pairs comparisons such as
+  Tukey's) and single-step (no step-down Dunnett). They pool the variance of
+  all arms, so they assume equal variances; with very unequal variances use
+  pairwise Welch tests and `adjust_p_values`. The multi-arm design gives the
+  power of each treatment-versus-control comparison, assuming every treatment
+  arm has the MDE, not the power to detect at least one or all arms. CUPED,
+  ratio metrics, sequential and Bayesian methods remain two-arm only.
 - `experiment_duration` assumes every day brings new, distinct units.
 - CUPED uses a single covariate and treats `theta` as fixed; ratio-metric and
   relative-lift intervals rely on the first-order delta method.
@@ -315,11 +436,13 @@ CI runs the same steps, plus a CLI smoke test, on Python 3.11, 3.12 and 3.13.
 Roadmap: futility and one-sided boundaries via recursive numerical integration
 (Jennison & Turnbull, ch. 19), sample size inflation for sequential designs,
 regression adjustment with several covariates, bootstrap intervals, Bayesian
-models for continuous metrics, and multi-arm designs.
+models for continuous metrics, step-down Dunnett tests, and multi-arm
+power for detecting any or all effective arms.
 
 ## References
 
 - Kohavi, R., Tang, D., & Xu, Y. (2020). *Trustworthy Online Controlled Experiments*. Cambridge University Press.
+- Dunnett, C. W. (1955). A multiple comparison procedure for comparing several treatments with a control. *JASA*, 50(272), 1096-1121.
 - Deng, A., Xu, Y., Kohavi, R., & Walker, T. (2013). Improving the sensitivity of online controlled experiments by utilizing pre-experiment data. *WSDM 2013*.
 - Deng, A., Knoblich, U., & Lu, J. (2018). Applying the delta method in metric analytics: a practical guide with novel ideas. *KDD 2018*.
 - Johari, R., Koomen, P., Pekelis, L., & Walsh, D. (2017). Peeking at A/B tests: why it matters, and what to do about it. *KDD 2017*.

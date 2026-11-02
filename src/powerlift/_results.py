@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -26,8 +27,9 @@ class Result(ABC):
     def to_dict(self) -> dict[str, Any]:
         """Return the result as a dictionary of plain Python types.
 
-        Nested results become nested dictionaries and tuples become lists,
-        so the output can be passed directly to :func:`json.dumps`.
+        Nested results become nested dictionaries, tuples become lists and
+        infinite or NaN floats (such as the open end of a one-sided interval)
+        become None, so the output is valid JSON for :func:`json.dumps`.
         """
         return {
             field.name: _to_builtin(getattr(self, field.name))
@@ -44,7 +46,9 @@ def _to_builtin(value: object) -> Any:
     if isinstance(value, tuple | list):
         return [_to_builtin(item) for item in value]
     if isinstance(value, np.generic):
-        return value.item()
+        value = value.item()
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     return value
 
 

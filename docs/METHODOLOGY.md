@@ -202,6 +202,85 @@ For `m` p-values sorted as `p_(1) <= ... <= p_(m)`:
 
 A hypothesis is rejected when its adjusted p-value is `<= alpha`.
 
+### 7.1 Several treatment arms against one control (A/B/n tests)
+
+`compare_means_to_control` and `compare_proportions_to_control` compare `k`
+treatment arms with one control. Conversion rates are treated as means of 0/1
+outcomes, so one method covers both metrics.
+
+**Statistics.** With `N` units in `k + 1` arms, pooled within-arm variance
+`s^2 = sum_g SS_g / (N - k - 1)` and `df = N - k - 1`:
+
+```text
+t_i = (mean_i - mean_0) / (s sqrt(1/n_i + 1/n_0)),   i = 1..k
+```
+
+The statistics share the control mean and `s`, so under the null they follow a
+multivariate t distribution with correlations `lambda_i lambda_j`, where
+`lambda_i = sqrt(n_i / (n_i + n_0))` (Dunnett 1955).
+
+**Dunnett's test** (single step) compares each `|t_i|` with the distribution of
+the largest one: the adjusted p-value is `P(max_j |T_j| >= |t_i|)` and the
+critical value `c` solves `P(max_j |T_j| <= c) = 1 - alpha`. The simultaneous
+intervals `diff_i +- c se_i` all cover their true differences with probability
+`1 - alpha`, and an arm is significant exactly when its interval excludes 0.
+One-sided tests use `P(max_j T_j <= c)` and one-sided bounds.
+
+**Computing the distribution.** The product form of the correlations lets each
+statistic be written as `T_i = (lambda_i Z_0 + sqrt(1 - lambda_i^2) E_i) / S`
+with independent standard normals `Z_0, E_i` and `S = sqrt(chi2_df / df)`.
+Given `Z_0` and `S` the statistics are independent, so
+
+```text
+P(max_i |T_i| <= c) = E_S E_Z0 prod_i [Phi(a_i+) - Phi(a_i-)],
+a_i+- = (+-c S - lambda_i Z_0) / sqrt(1 - lambda_i^2)
+```
+
+a two-dimensional integral for any `k` (Dunnett 1955; Dunnett 1989). powerlift
+evaluates both expectations with the trapezoidal rule, which converges
+exponentially fast for smooth integrands with Gaussian decay (Trefethen &
+Weideman 2014): `Z_0` on a grid over [-9, 9] whose step shrinks with the
+narrowest factor `sqrt(1 - lambda^2) / lambda`, and `S` through its normal
+score on a grid over [-8.5, 8.5]. The result is deterministic. The tests require
+agreement with the closed forms (`k = 1`, uncorrelated statistics) to 1e-12, and
+with SciPy's general multivariate normal and t integrators to 1e-6 and 1e-5
+(SciPy's own randomized error is the limit there).
+`scipy.stats.dunnett` integrates the same distribution by randomized
+quasi-Monte Carlo; its p-values move by up to about 1e-4 between seeds.
+
+**Alternatives.** `adjustment="bonferroni"` multiplies the per-comparison
+p-values by `k`; `"holm"` applies Holm's step-down adjustment (section 7). Both
+reuse `adjust_p_values`. Bonferroni intervals use the `t_{df}` quantile at
+`alpha / (2k)`; Holm has no simple matching intervals, so it reports
+Bonferroni's, which can contain 0 for an arm that Holm declares significant.
+`"none"` gives the unadjusted tests, whose family-wise error grows with `k`.
+
+**Assumptions.** Equal variances across arms (the pooled `s`), independent
+units, and approximate normality of the arm means. With one treatment arm the
+test is Student's pooled-variance t-test, not Welch's.
+
+### 7.2 Sample size for several treatment arms
+
+`sample_size_multi_arm_means` and `sample_size_multi_arm_proportions` size an
+experiment with `k` treatment arms of `n` units and a control of `r n` units,
+for a given power per treatment-versus-control comparison. With
+`r = control_ratio`, the statistics have correlation `1 / (1 + r)`, so the
+Dunnett critical value `c` depends only on `k`, `r` and `alpha` (normal
+approximation, `df = inf`). The two-arm formulas of section 1 then hold per
+arm with `z_a` replaced by `c`:
+
+```text
+means:        n = ((c + z_b) sd / delta)^2 (1 + 1/r)
+proportions:  n = (c sqrt(v (1 + 1/r)) + z_b sqrt(p_t (1 - p_t) + p_c (1 - p_c) / r))^2 / delta^2
+              v = (r p_c (1 - p_c) + k p_t (1 - p_t)) / (r + k)
+```
+
+`v` is the pooled within-arm variance the analysis will estimate when every
+treatment arm converts at `p_t`. `adjustment="bonferroni"` uses
+`c = z_{1 - alpha/(2k)}` instead, a conservative fallback that needs more
+units. Dunnett (1955) noted that a control about `sqrt(k)` times larger than
+each treatment arm minimizes the total sample size.
+
 ## 8. Sequential testing (`powerlift.sequential`)
 
 ### 8.1 Group sequential boundaries
@@ -310,6 +389,8 @@ mean and should be justified.
 - Benjamini, Y., & Hochberg, Y. (1995). Controlling the false discovery rate: a practical and powerful approach to multiple testing. *JRSS B*, 57(1), 289-300.
 - Deng, A., Knoblich, U., & Lu, J. (2018). Applying the delta method in metric analytics: a practical guide with novel ideas. *KDD 2018*.
 - Deng, A., Xu, Y., Kohavi, R., & Walker, T. (2013). Improving the sensitivity of online controlled experiments by utilizing pre-experiment data. *WSDM 2013*.
+- Dunnett, C. W. (1955). A multiple comparison procedure for comparing several treatments with a control. *JASA*, 50(272), 1096-1121.
+- Dunnett, C. W. (1989). Algorithm AS 251: Multivariate normal probability integrals with product correlation structure. *Applied Statistics*, 38(3), 564-579.
 - Fabijan, A., et al. (2019). Diagnosing sample ratio mismatch in online controlled experiments: a taxonomy and rules of thumb for practitioners. *KDD 2019*.
 - Fleiss, J. L., Levin, B., & Paik, M. C. (2003). *Statistical Methods for Rates and Proportions* (3rd ed.). Wiley.
 - Holm, S. (1979). A simple sequentially rejective multiple test procedure. *Scandinavian Journal of Statistics*, 6(2), 65-70.
@@ -321,5 +402,6 @@ mean and should be justified.
 - Newcombe, R. G. (1998). Interval estimation for the difference between independent proportions: comparison of eleven methods. *Statistics in Medicine*, 17(8), 873-890.
 - O'Brien, P. C., & Fleming, T. R. (1979). A multiple testing procedure for clinical trials. *Biometrics*, 35(3), 549-556.
 - Pocock, S. J. (1977). Group sequential methods in the design and analysis of clinical trials. *Biometrika*, 64(2), 191-199.
+- Trefethen, L. N., & Weideman, J. A. C. (2014). The exponentially convergent trapezoidal rule. *SIAM Review*, 56(3), 385-458.
 - Welch, B. L. (1947). The generalization of "Student's" problem when several different population variances are involved. *Biometrika*, 34(1-2), 28-35.
 - Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. *JASA*, 22(158), 209-212.
