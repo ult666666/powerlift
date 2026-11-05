@@ -77,5 +77,5 @@ Dunnett's many-to-one test, two-sided, alpha = 0.05 (family-wise)
 ```
 
 The v0.1.0 release wheel predates this: its `analyze` keeps only the last
-`--treatment-label`, so the command above runs a two-arm test there. Install from
-`main` to get the multi-arm readout.
+`--treatment-label`, so the command above runs a two-arm test there. Install v0.2.0
+or later to get the multi-arm readout.
