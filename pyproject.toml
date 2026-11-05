@@ -1,6 +1,6 @@
 [project]
 name = "powerlift"
-version = "0.1.0"
+version = "0.2.0"
 description = "Statistics for A/B tests done right: power analysis, frequentist and Bayesian analysis, variance reduction, sequential monitoring and sanity checks."
 readme = "README.md"
 license = "MIT"

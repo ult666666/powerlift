@@ -274,7 +274,7 @@ def test_version_and_module_entry_point(
     with pytest.raises(SystemExit) as exit_info:
         main(["--version"])
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out.strip() == "powerlift 0.1.0"
+    assert capsys.readouterr().out.strip() == "powerlift 0.2.0"
     monkeypatch.setattr(sys, "argv", ["powerlift", "srm", "--observed", "10", "10"])
     with pytest.raises(SystemExit) as exit_info:
         runpy.run_module("powerlift", run_name="__main__")

@@ -18,11 +18,10 @@ as small, typed functions.
 ## Install
 
 ```bash
-pip install "git+https://github.com/ult666666/powerlift.git"
+pip install "https://github.com/ult666666/powerlift/releases/download/v0.2.0/powerlift-0.2.0-py3-none-any.whl"
 ```
 
-It needs Python 3.11 or newer; the [v0.1.0 release](https://github.com/ult666666/powerlift/releases/tag/v0.1.0)
-wheel predates the A/B/n features. For development, clone and run `uv sync`.
+It needs Python 3.11 or newer. For development, clone and run `uv sync`.
 
 ## Plan a test, then read it out
 
