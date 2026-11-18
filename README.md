@@ -17,11 +17,16 @@ as small, typed functions.
 
 ## Install
 
+With Git installed, run the source install in a Python 3.11+ virtual environment to get
+the current library and CLI.
+
 ```bash
-pip install "https://github.com/ult666666/powerlift/releases/download/v0.2.0/powerlift-0.2.0-py3-none-any.whl"
+python -m pip install "powerlift @ git+https://github.com/ult666666/powerlift.git@main"
 ```
 
-It needs Python 3.11 or newer. For development, clone and run `uv sync`.
+For development, clone the repository and run `uv sync`. The
+[v0.1.0 release](https://github.com/ult666666/powerlift/releases/tag/v0.1.0) includes a
+prebuilt wheel and checksums for that version.
 
 ## Plan a test, then read it out
 
